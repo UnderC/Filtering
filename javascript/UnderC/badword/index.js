@@ -9,6 +9,7 @@ const svc = new discord.Client()
 const db = new DB('localhost', 'root', 'root', 'wordbot')
 
 const test = async (query) => {
+    query = query.toLowerCase()
     let temp = { isKr: hangul.isHangul(query), isEn: isAlphabet(query), p: { kr: [], en: [], uni: [] }, res: false }
     let mode = temp.isKr ? 'kr' : (temp.isEn ? 'en' : 'uni')
     temp.p[mode][0] = { query: query, result: await check(query) }
@@ -17,7 +18,7 @@ const test = async (query) => {
         return temp
     }
 
-    let pureQuery = query.match(temp.isKr ? /[ㄱ-힣]/g : (temp.isEn ? /[a-zA-Z]/g : query)).join('')
+    let pureQuery = query.match(temp.isKr ? /[ㄱ-힣]/gm : (temp.isEn ? /[a-zA-Z]/gm : /.*?/gm)).join('')
     temp.p[mode][1] = { query: pureQuery, result: await check(pureQuery) }
     if (temp.p[mode][1].result) {
         temp.res = true
@@ -45,13 +46,13 @@ const conv = (query, toEn) => {
 }
 
 const check = async (query, isEn) => {
-    query = Array.isArray(query) ? query.join() : query
+    query = Array.isArray(query) ? query.join().toLowerCase() : query.toLowerCase()
     let bads = await db.select('badwords')
-    let bRegex = JSON.stringify(bads).split('"').join('').split(',').join('|').split('{v:').join('').split('}').join('').replace('[', '').replace(']', '')
+    let bRegex = JSON.stringify(bads).split('"').join('').split(',').join('|').split('{v:').join('').split('}').join('').replace('[', '').replace(']', '').toLowerCase()
     let bTemp = query.match(bRegex) || []
     
     let fines = await db.select('finewords')
-    let fRegex = JSON.stringify(fines).split('"').join('').split(',').join('|').split('{v:').join('').split('}').join('').replace('[', '').replace(']', '')
+    let fRegex = JSON.stringify(fines).split('"').join('').split(',').join('|').split('{v:').join('').split('}').join('').replace('[', '').replace(']', '').toLowerCase()
     if (isEn) fRegex = hangul.a(conv(hangul.d(fRegex), !isEn))
     let fTemp = query.match(fRegex) || []
 
@@ -75,19 +76,29 @@ svc.on('ready', () => {
 
 svc.on('message', async msg => {
     if (msg.author.bot) return
+    let r = await test(msg.content)
+    console.log(r)
     if (msg.content.startsWith(config.prefix)) {
-
+        let args = msg.content.replace(config.prefix, '').split(' ')
+        console.log(args)
+        if (args[0] === 'learn') {
+            if (!args[1] || !args[2]) return
+            let learntype = `${args[1]}words`
+            db.delete(args[1] === 'bad' ? 'finewords' : learntype, { v: args[2] })
+            if (await db.select(args[1] === 'bad' ? learntype : 'finewords', { v: args[2] })[0]) return
+            db.insert(args[1] === 'bad' ? learntype : 'finewords', { v: args[2] })
+        }
     } else {
-        if (msg.channel.id === 'BADLEARN') {
+        if (msg.channel.id === '607584096809517061') {
             db.delete('finewords', { v: msg.content })
             if (await db.select('badwords', { v: msg.content })[0]) return
             db.insert('badwords', { v: msg.content })
-        } else if (msg.channel.id === 'FINELEARN') {
+        } else if (msg.channel.id === '609214677527822336') {
             db.delete('badwords', { v: msg.content })
             if (await db.select('badwords', { v: msg.content })[0]) return
             db.insert('finewords', { v: msg.content })
         } else if (msg.channel.id === '609309970852347904' || msg.channel.id === '544141125607227402') {
-            let r = await test(msg.content)
+            
             msg.channel.send(JSON.stringify(r))
         }
     }
