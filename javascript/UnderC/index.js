@@ -89,11 +89,11 @@ svc.on('message', async msg => {
             db.insert(args[1] === 'bad' ? learntype : 'finewords', { v: args[2] })
         }
     } else {
-        if (msg.channel.id === '607584096809517061') {
+        if (msg.channel.id === 'BADLEARN') {
             db.delete('finewords', { v: msg.content })
             if (await db.select('badwords', { v: msg.content })[0]) return
             db.insert('badwords', { v: msg.content })
-        } else if (msg.channel.id === '609214677527822336') {
+        } else if (msg.channel.id === 'FINELEARN') {
             db.delete('badwords', { v: msg.content })
             if (await db.select('badwords', { v: msg.content })[0]) return
             db.insert('finewords', { v: msg.content })
